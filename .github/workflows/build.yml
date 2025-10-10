@@ -15,7 +15,8 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install pyinstaller
-      - run: pyinstaller --onefile --noconsole MAIN.py
+      - run: pip install pyside6
+      - run: pyinstaller --onefile --noconsole --hidden-import=PySide6 --hidden-import=PySide6.QtWidgets --hidden-import=PySide6.QtCore --hidden-import=PySide6.QtGui MAIN.py
       - name: Upload executable
         uses: actions/upload-artifact@v4
         with:
