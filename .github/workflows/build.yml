@@ -21,13 +21,17 @@ jobs:
           pip install pyinstaller pyside6
 
       - name: Build executable
-        run: pyinstaller --onefile --noconsole --hidden-import=PySide6 --hidden-import=PySide6.QtWidgets --hidden-import=PySide6.QtCore --hidden-import=PySide6.QtGui MAIN.py
-
+        run: |
+          pyinstaller --onefile --noconsole `
+            --hidden-import=PySide6 `
+            --hidden-import=PySide6.QtWidgets `
+            --hidden-import=PySide6.QtCore `
+            --hidden-import=PySide6.QtGui `
+            MAIN.py
 
       - name: Copy Qt platform plugins
         run: |
-          mkdir dist/platforms
-          xcopy /E /I "%PythonLocation%\Lib\site-packages\PySide6\plugins\platforms" "dist\platforms\"
+          python -c "import PySide6, shutil, os; src=os.path.join(os.path.dirname(PySide6.__file__), 'plugins', 'platforms'); dst=os.path.join('dist', 'platforms'); os.makedirs(dst, exist_ok=True); [shutil.copy(os.path.join(src, f), dst) for f in os.listdir(src)]"
 
       - name: Upload executable
         uses: actions/upload-artifact@v4
