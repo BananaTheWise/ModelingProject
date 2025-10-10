@@ -10,15 +10,32 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: pip install pyinstaller
-      - run: pip install pyside6
-      - run: pyinstaller --onefile --noconsole --hidden-import=PySide6 --hidden-import=PySide6.QtWidgets --hidden-import=PySide6.QtCore --hidden-import=PySide6.QtGui MAIN.py
+
+      - name: Install dependencies
+        run: |
+          pip install pyinstaller pyside6
+
+      - name: Build executable
+        run: |
+          pyinstaller --onefile --noconsole ^
+            --hidden-import=PySide6 ^
+            --hidden-import=PySide6.QtWidgets ^
+            --hidden-import=PySide6.QtCore ^
+            --hidden-import=PySide6.QtGui ^
+            MAIN.py
+
+      - name: Copy Qt platform plugins
+        run: |
+          mkdir dist/platforms
+          xcopy /E /I "%PythonLocation%\Lib\site-packages\PySide6\plugins\platforms" "dist\platforms\"
+
       - name: Upload executable
         uses: actions/upload-artifact@v4
         with:
           name: Windows-EXE
-          path: dist/*.exe
+          path: dist/**
