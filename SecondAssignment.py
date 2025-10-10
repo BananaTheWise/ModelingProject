@@ -1,3 +1,4 @@
+from PySide6.QtGui import QDoubleValidator, QIntValidator
 from PySide6.QtWidgets import (
     QMainWindow,
     QWidget,
@@ -10,8 +11,11 @@ from PySide6.QtWidgets import (
     QStackedWidget,
     QRadioButton,
     QSpacerItem,
-    QSizePolicy, QButtonGroup,
+    QSizePolicy, QButtonGroup,QMessageBox,
 )
+from PySide6.QtCore import QRegularExpression
+from PySide6.QtGui import QRegularExpressionValidator
+from PySide6.QtWidgets import QMessageBox
 import random
 from PySide6.QtCore import Qt
 from MAIN import DashboardWindow
@@ -83,6 +87,76 @@ class SecondAssignment(QMainWindow):
 
     def go_next(self):
         idx = self.stacked.currentIndex()
+        current_page = self.pages[idx]
+
+        # Save inputs
+        if isinstance(current_page, Page1):
+            self.input_data["page1"]["start"] = int(current_page.start_field.text())
+            self.input_data["page1"]["end"] = int(current_page.end_field.text())
+            self.input_data["page1"]["probabilities"] = current_page.prob_field.text()
+            self.input_data["page1"]["equal"] = current_page.equal_checkbox.isChecked()
+
+        elif isinstance(current_page, Page2):
+            self.input_data["page2"]["start"] = int(current_page.start_field.text())
+            self.input_data["page2"]["end"] = int(current_page.end_field.text())
+            self.input_data["page2"]["probabilities"] = current_page.prob_field.text()
+            self.input_data["page2"]["equal"] = current_page.equal_checkbox.isChecked()
+
+        elif isinstance(current_page, Page3):
+            from PySide6.QtWidgets import QMessageBox
+            text = current_page.num_instances_field.text().strip()
+            if not text:
+                QMessageBox.warning(self, "Invalid Input", "Please enter the number of instances")
+                return
+            try:
+                self.input_data["page3"]["instances"] = int(text)
+            except ValueError:
+                QMessageBox.warning(self, "Invalid Input", "Number of instances must be an integer")
+                return
+
+            self.input_data["page3"]["traffic_type"] = (
+                current_page.traffic_radio.text() if current_page.traffic_radio.isChecked() else "Other"
+            )
+
+# --- Page1/Page2 validation ---
+        if isinstance(current_page, (Page1, Page2)):
+            # Get start/end
+            try:
+                start = int(current_page.start_field.text())
+                end = int(current_page.end_field.text())
+            except ValueError:
+                from PySide6.QtWidgets import QMessageBox
+                QMessageBox.warning(self, "Invalid Input", "Start and End must be numbers")
+                return
+
+            # Get probabilities
+            probs_text = current_page.prob_field.text().strip()
+            # Split by spaces
+            prob_items = [x for x in probs_text.split() if x]  # ignore extra spaces
+            try:
+                probs = [float(x) for x in prob_items]
+            except ValueError:
+                from PySide6.QtWidgets import QMessageBox
+                QMessageBox.warning(self, "Invalid Input", "Probabilities must be numbers separated by spaces")
+                return
+
+            # Check number of items matches range
+            if len(prob_items) != (end - start + 1):
+                from PySide6.QtWidgets import QMessageBox
+                QMessageBox.warning(self, "Invalid Input",
+                                    f"Number of probabilities must be equal to end-start+1 ({end - start + 1})")
+                return
+
+            # Check sum = 1
+            if abs(sum(probs) - 1.0) > 1e-6:
+                from PySide6.QtWidgets import QMessageBox
+                QMessageBox.warning(self, "Invalid Input", "Sum of probabilities must equal 1")
+                return
+
+            # Save values for later
+            current_page.start_val = start
+            current_page.end_val = end
+            current_page.probs_val = probs
 
         # If not last page → go next normally
         if idx < self.stacked.count() - 1:
@@ -136,12 +210,36 @@ class SecondAssignment(QMainWindow):
         main_layout.setSpacing(10)
         main_layout.setContentsMargins(10, 10, 10, 10)
 
+        # Store all input data here
+        self.input_data = {
+            "page1": {
+                "start": 1,
+                "end": 8,
+                "probabilities": "0.125 0.125 0.125 0.125 0.125 0.125 0.125 0.125",
+                "equal": True
+            },
+            "page2": {
+                "start": 1,
+                "end": 5,
+                "probabilities": "0.2 0.2 0.2 0.2 0.2",
+                "equal": True
+            },
+            "page3": {
+                "instances": 20,
+                "traffic_type": "Traffic"
+            },
+            "page4": {
+                "output_option": "📊 Excel"  # default selected option
+            }
+        }
+
         self.stacked = QStackedWidget()
+
         self.pages = [
-            Page1(prev_callback=self.handle_back, next_callback=self.go_next),
-            Page2(prev_callback=self.go_prev, next_callback=self.go_next),
-            Page3(prev_callback=self.go_prev, next_callback=self.go_next),
-            Page4(prev_callback=self.go_prev, next_callback=self.go_next)
+            Page1(prev_callback=self.handle_back, next_callback=self.go_next, defaults=self.input_data["page1"]),
+            Page2(prev_callback=self.go_prev, next_callback=self.go_next, defaults=self.input_data["page2"]),
+            Page3(prev_callback=self.go_prev, next_callback=self.go_next, defaults=self.input_data["page3"]),
+            Page4(prev_callback=self.go_prev, next_callback=self.go_next, defaults=self.input_data["page4"])
         ]
 
         for page in self.pages:
@@ -163,8 +261,10 @@ class SecondAssignment(QMainWindow):
 ###########################################################################
 
 class Page1(BasePage):
-    def __init__(self, prev_callback=None, next_callback=None):
+    def __init__(self, prev_callback=None, next_callback=None, defaults=None):
         super().__init__()
+
+        defaults = defaults or {}
 
         # --- Title ---
         title_btn = QPushButton("Interarrival Time")
@@ -186,34 +286,46 @@ class Page1(BasePage):
         range_label = QLabel("Range")
         range_label.setStyleSheet("color: white; font-size: 14px;")
 
-        start_field = self.make_field("Start")
-        end_field = self.make_field("End")
+        self.start_field = self.make_field("Start")
+        self.start_field.setText(str(defaults.get("start", "")))
+        self.start_field.setValidator(QIntValidator(1, 10000))
+
+        self.end_field = self.make_field("End")
+        self.end_field.setText(str(defaults.get("end", "")))
+        self.end_field.setValidator(QIntValidator(1, 10000))
 
         range_row = QHBoxLayout()
         range_row.addWidget(range_label)
         range_row.addStretch()
-        range_row.addWidget(start_field)
-        range_row.addWidget(end_field)
+        range_row.addWidget(self.start_field)
+        range_row.addWidget(self.end_field)
         self.main_layout.addLayout(range_row)
 
-        self.main_layout.addSpacerItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Fixed))
+        self.main_layout.addSpacerItem(QSpacerItem(20, 40, QSizePolicy  .Minimum, QSizePolicy.Fixed))
 
         # --- Equal section ---
-        equal_checkbox = QCheckBox("Equal")
-        equal_checkbox.setStyleSheet("color: white;")
+        self.equal_checkbox = QCheckBox("Equal")
+        self.equal_checkbox.setStyleSheet("color: white;")
         equal_text = QLabel("All probabilities are the same")
         equal_text.setStyleSheet("color: gray; font-size: 12px;")
         equal_text.setWordWrap(True)
-        self.main_layout.addWidget(equal_checkbox)
+        self.equal_checkbox.setChecked(defaults.get("equal", False))
+        self.main_layout.addWidget(self.equal_checkbox)
         self.main_layout.addWidget(equal_text)
         self.main_layout.addSpacerItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Fixed))
 
         # --- Probabilities section ---
         prob_label = QLabel("Probabilities")
         prob_label.setStyleSheet("color: white; font-size: 14px;")
-        prob_field = self.make_field("Sum of Probs. must equal 1", width=200, height=40)
+        self.prob_field = self.make_field("Sum of Probs. must equal 1", width=200, height=40)
+        self.prob_field.setText(defaults.get("probabilities", ""))
+
+
+        regex = QRegularExpression(r"^(\d*\.?\d+\s*)+$")
+        validator = QRegularExpressionValidator(regex)
+        self.prob_field.setValidator(validator)
         self.main_layout.addWidget(prob_label)
-        self.main_layout.addWidget(prob_field)
+        self.main_layout.addWidget(self.prob_field)
 
         # Push everything up
         self.main_layout.addStretch()
@@ -225,8 +337,10 @@ class Page1(BasePage):
 ###########################################################################
 
 class Page2(BasePage):
-    def __init__(self, prev_callback=None, next_callback=None):
+    def __init__(self, prev_callback=None, next_callback=None, defaults=None):
         super().__init__()
+
+        defaults = defaults or {}
 
         # --- Title ---
         title_btn = QPushButton("Service-Time")
@@ -248,37 +362,45 @@ class Page2(BasePage):
         range_label = QLabel("Range")
         range_label.setStyleSheet("color: white; font-size: 14px;")
 
-        start_field = self.make_field("Start")
-        end_field = self.make_field("End")
+        self.start_field = self.make_field("Start")
+        self.start_field.setText(str(defaults.get("start", "")))
+        self.start_field.setValidator(QIntValidator(1, 10000))
+
+        self.end_field = self.make_field("End")
+        self.end_field.setText(str(defaults.get("end", "")))
+        self.end_field.setValidator(QIntValidator(1, 10000))
 
         range_row = QHBoxLayout()
         range_row.addWidget(range_label)
         range_row.addStretch()
-        range_row.addWidget(start_field)
-        range_row.addWidget(end_field)
+        range_row.addWidget(self.start_field)
+        range_row.addWidget(self.end_field)
         self.main_layout.addLayout(range_row)
 
-        # Fake space under range
         self.main_layout.addSpacerItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Fixed))
 
         # --- Equal section ---
-        equal_checkbox = QCheckBox("Equal")
-        equal_checkbox.setStyleSheet("color: white;")
+        self.equal_checkbox = QCheckBox("Equal")
+        self.equal_checkbox.setStyleSheet("color: white;")
         equal_text = QLabel("All probabilities are the same")
         equal_text.setStyleSheet("color: gray; font-size: 12px;")
         equal_text.setWordWrap(True)
-        self.main_layout.addWidget(equal_checkbox)
+        self.equal_checkbox.setChecked(defaults.get("equal", False))
+        self.main_layout.addWidget(self.equal_checkbox)
         self.main_layout.addWidget(equal_text)
-
-        # Fake space under equal section
         self.main_layout.addSpacerItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Fixed))
 
         # --- Probabilities section ---
         prob_label = QLabel("Probabilities")
         prob_label.setStyleSheet("color: white; font-size: 14px;")
-        prob_field = self.make_field("Sum of Probs. must equal 1", width=200, height=40)
+        self.prob_field = self.make_field("Sum of Probs. must equal 1", width=200, height=40)
+        self.prob_field.setText(defaults.get("probabilities", ""))
+
+        regex = QRegularExpression(r"^(\d*\.?\d+\s*)+$")
+        validator = QRegularExpressionValidator(regex)
+        self.prob_field.setValidator(validator)
         self.main_layout.addWidget(prob_label)
-        self.main_layout.addWidget(prob_field)
+        self.main_layout.addWidget(self.prob_field)
 
         # Bottom stretch
         self.main_layout.addStretch()
@@ -288,10 +410,10 @@ class Page2(BasePage):
         self.add_nav_buttons(prev_callback, next_callback)
 
 ###########################################################################
-
 class Page3(BasePage):
-    def __init__(self, prev_callback=None, next_callback=None):
+    def __init__(self, prev_callback=None, next_callback=None, defaults=None):
         super().__init__()
+        defaults = defaults or {}
 
         # --- Title ---
         title_btn = QPushButton("Simulation Table")
@@ -306,45 +428,46 @@ class Page3(BasePage):
            """)
         self.main_layout.addLayout(self.centered_row(title_btn))
 
-        # Fake space under title
         self.main_layout.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Minimum, QSizePolicy.Fixed))
 
-        # --- Range section ---
+        # --- How Many Instances ---
         range_label = QLabel("How Many Instances")
         range_label.setStyleSheet("color: white; font-size: 14px;")
 
-        start_field = self.make_field("Ex. 20")
+        self.num_instances_field.setText(str(defaults.get("instances", 20)))  # default = 20
+        self.num_instances_field.setText(str(defaults.get("num_instances", "")))
 
         range_row = QHBoxLayout()
         range_row.addWidget(range_label)
         range_row.addStretch()
-        range_row.addWidget(start_field)
+        range_row.addWidget(self.num_instances_field)
         self.main_layout.addLayout(range_row)
 
-        # Fake space under range
         self.main_layout.addSpacerItem(QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Fixed))
 
         # --- Radio section ---
+        self.traffic_radio = QRadioButton("Traffic")
+        self.traffic_radio.setChecked(defaults.get("traffic_selected", True))
+        self.traffic_radio.setStyleSheet("color: white;")
+
         radio_layout = QHBoxLayout()
-        traffic_radio = QRadioButton("Traffic")
-        traffic_radio.setChecked(True)
-        traffic_radio.setStyleSheet("color: white;")
-        radio_layout.addWidget(traffic_radio)
+        radio_layout.addWidget(self.traffic_radio)
         radio_layout.addStretch()
         self.main_layout.addLayout(radio_layout)
 
         # Bottom stretch
         self.main_layout.addStretch()
 
-        # --- Nav buttons at bottom ---
+        # --- Nav buttons ---
         self.main_layout.addLayout(self.nav_layout)
         self.add_nav_buttons(prev_callback, next_callback)
 
 ###########################################################################
 
 class Page4(BasePage):
-    def __init__(self, prev_callback=None, next_callback=None):
+    def __init__(self, prev_callback=None, next_callback=None, defaults=None):
         super().__init__()
+        defaults = defaults or {}
 
         # --- Title ---
         title_btn = QPushButton("Output")
@@ -368,14 +491,21 @@ class Page4(BasePage):
             ("💻 Terminal", "Print results in the console output")
         ]
 
-        self.button_group = QButtonGroup(self)  # store it in self
+        self.button_group = QButtonGroup(self)
         self.button_group.setExclusive(True)
+        self.radio_buttons = []
+
+        default_selected = defaults.get("output_option", None)
 
         for label_text, description in options:
             radio = QRadioButton(label_text)
             radio.setStyleSheet("color: white; font-size: 14px;")
             self.button_group.addButton(radio)
             self.main_layout.addWidget(radio)
+
+            # If this matches default, select it
+            if label_text == default_selected:
+                radio.setChecked(True)
 
             # --- Description field (read-only QLineEdit) ---
             desc_field = QLineEdit(description)
