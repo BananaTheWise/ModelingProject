@@ -11,7 +11,7 @@ from PySide6.QtWidgets import (
     QStackedWidget,
     QRadioButton,
     QSpacerItem,
-    QSizePolicy, QButtonGroup,QMessageBox,
+    QSizePolicy, QButtonGroup, QMessageBox, QApplication,
 )
 from PySide6.QtCore import QRegularExpression
 from PySide6.QtGui import QRegularExpressionValidator
@@ -174,14 +174,28 @@ class SecondAssignment(QMainWindow):
             # Example: handle different selections
             if "Excel" in selected:
                 print("Exporting results to Excel...")
-                # call your Excel export function here
+
             elif "GUI" in selected:
                 print("Displaying results in GUI...")
                 # show another window
             elif "Terminal" in selected:
                 print("Printing results to terminal...")
-                # print output or save file
+                p1 = self.input_data["page1"]
+                p2 = self.input_data["page2"]
+                p3 = self.input_data["page3"]
 
+                probs1 = list(map(float, p1["probabilities"].split()))
+                probs2 = list(map(float, p2["probabilities"].split()))
+
+                Temp1 = Page4.generate_interarrival_distribution(p1["start"], p1["end"], probs1)
+                Temp2 = Page4.generate_service_time_distribution(p2["start"], p2["end"], probs2)
+                queue = Page4.simulate_queue(Temp1, Temp2, p3["instances"])
+
+                Page4.print_table_terminal(
+                    queue,
+                    ["user", "interarrival_time", "arrival_time", "service_time",
+                     "service_begin", "waiting_time", "service_end", "time_in_system", "idle_time"]
+                )
             # Optionally close the window after action
             self.close()
 
@@ -192,12 +206,24 @@ class SecondAssignment(QMainWindow):
         if event.buttons() == Qt.LeftButton:
             self.move(event.globalPosition().toPoint() - self._drag_pos)
 
+    def center_on_screen(self):
+        # Get screen geometry
+        screen = QApplication.primaryScreen()
+        screen_geometry = screen.availableGeometry()
+        # Get window geometry
+        window_geometry = self.frameGeometry()
+        # Calculate center
+        center_point = screen_geometry.center()
+        window_geometry.moveCenter(center_point)
+        self.move(window_geometry.topLeft())
+
     def __init__(self, num_pages=3):
         super().__init__()
         self.setWindowTitle("Second Assignment")
         self.setFixedSize(310, 557)
         self.setWindowFlags(Qt.FramelessWindowHint)
         self.setAttribute(Qt.WA_TranslucentBackground)
+        self.center_on_screen()
 
         central = QWidget()
         central.setStyleSheet("""
@@ -434,8 +460,9 @@ class Page3(BasePage):
         range_label = QLabel("How Many Instances")
         range_label.setStyleSheet("color: white; font-size: 14px;")
 
+        self.num_instances_field = self.make_field("Ex.20")
+        self.num_instances_field.setValidator(QIntValidator(1, 10000))
         self.num_instances_field.setText(str(defaults.get("instances", 20)))  # default = 20
-        self.num_instances_field.setText(str(defaults.get("num_instances", "")))
 
         range_row = QHBoxLayout()
         range_row.addWidget(range_label)
@@ -592,6 +619,7 @@ class Page4(BasePage):
             ]
             table.append(row)
 
+        print("GID DEBUG TABLE:", table)
         return table
 
     @staticmethod
@@ -653,6 +681,7 @@ class Page4(BasePage):
             ]
             table.append(row)
 
+        print("GSTD Debug Table:", table)
         return table
 
     @staticmethod
@@ -691,6 +720,7 @@ class Page4(BasePage):
 
             table.append([user_id, f"{random_digit:03d}", interarrival_time])
 
+        print("AIT Debug Table:", table)
         return table
 
     @staticmethod
@@ -727,6 +757,7 @@ class Page4(BasePage):
 
             table.append([cust_id, f"{random_digit:02d}", service_time])
 
+        print("AST Debug Table:", table)
         return table
 
     # --- Step 2: Full Queue Simulation ---
@@ -740,31 +771,20 @@ class Page4(BasePage):
 
         for i in range(num_users):
             user = i + 1
-            interarrival_time = inter_table[i][1]
-            service_time = service_table[i][1]
+            interarrival_time = float(inter_table[i][2])  # ensure numeric
+            service_time = float(service_table[i][2])  # ensure numeric
 
-            # Arrival time = previous arrival + interarrival
             if i == 0:
                 arrival_time = interarrival_time
             else:
                 arrival_time = simulation[i - 1][2] + interarrival_time
 
-            # Service begins when server is free or when user arrives, whichever is later
             service_begin = max(arrival_time, server_available_time)
-
-            # Waiting time in queue
             waiting_time = service_begin - arrival_time
-
-            # Service ends
             service_end = service_begin + service_time
-
-            # Time in system
             time_in_system = waiting_time + service_time
-
-            # Idle time of server
             idle_time = max(0, arrival_time - server_available_time)
 
-            # Update server available time
             server_available_time = service_end
 
             simulation.append([
@@ -779,4 +799,95 @@ class Page4(BasePage):
                 idle_time
             ])
 
+        print("SQ Debug Table:", simulation)
         return simulation
+
+    # Function 1: Print table in terminal
+    @staticmethod
+    def print_table_terminal(table, headers=None):
+            """
+            Prints a neatly aligned 2D table in the terminal with optional headers.
+            Automatically adjusts column widths and handles numeric values.
+            """
+            if not table:
+                print("(Empty table)")
+                return
+
+            # Convert all cells to strings
+            str_table = [[str(cell) for cell in row] for row in table]
+
+            # Include headers if provided
+            if headers:
+                str_headers = [str(h) for h in headers]
+                data = [str_headers] + str_table
+            else:
+                data = str_table
+
+            # Compute column widths
+            col_widths = [max(len(row[i]) for row in data) for i in range(len(data[0]))]
+
+            # Helper to format a row
+            def format_row(row):
+                return " | ".join(str(row[i]).ljust(col_widths[i]) for i in range(len(row)))
+
+            # Print header
+            if headers:
+                print(format_row(headers))
+                print("-" * (sum(col_widths) + 3 * (len(col_widths) - 1)))
+
+            # Print each row
+            for row in table:
+                print(format_row(row))
+
+    # Function 2: Save table to .txt file
+    def save_table_txt(table, filename="table_output.txt", headers=None):
+        """
+        Saves a 2D table to a text file.
+        """
+        with open(filename, "w") as f:
+            if headers:
+                f.write(" | ".join(map(str, headers)) + "\n")
+                f.write("-" * (len(headers) * 10) + "\n")
+            for row in table:
+                f.write(" | ".join(map(str, row)) + "\n")
+        print(f"Table saved to {filename}")
+
+    # Function 3: Save table to Excel (.xlsx)
+    def save_table_excel(table, filename="table_output.xlsx", headers=None):
+        """
+        Saves a 2D table to Excel using openpyxl.
+        """
+        try:
+            import openpyxl
+            from openpyxl.utils import get_column_letter
+        except ImportError:
+            raise ImportError("Please install openpyxl: pip install openpyxl")
+
+        wb = openpyxl.Workbook()
+        ws = wb.active
+
+        row_offset = 1
+        if headers:
+            for col, header in enumerate(headers, start=1):
+                ws.cell(row=1, column=col, value=header)
+            row_offset = 2
+
+        for r, row in enumerate(table, start=row_offset):
+            for c, val in enumerate(row, start=1):
+                ws.cell(row=r, column=c, value=val)
+
+        # Optional: auto-fit column widths
+        for col in ws.columns:
+            max_length = 0
+            column = col[0].column_letter
+            for cell in col:
+                try:
+                    if cell.value:
+                        max_length = max(max_length, len(str(cell.value)))
+                except:
+                    pass
+            ws.column_dimensions[column].width = max_length + 2
+
+        wb.save(filename)
+        print(f"Table saved to {filename}")
+

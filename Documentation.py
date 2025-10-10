@@ -16,6 +16,7 @@ class Documentation(QMainWindow):
         self.setFixedSize(310, 557)
         self.setWindowFlags(Qt.FramelessWindowHint)
         self.setAttribute(Qt.WA_TranslucentBackground)
+        self.center_on_screen()
 
         # Main widget and layout
         central = QWidget()
@@ -93,6 +94,17 @@ Validation: we will compare the output results with the output of real system by
         layout.addWidget(self.back_btn)
 
         central.setLayout(layout)
+
+    def center_on_screen(self):
+        # Get screen geometry
+        screen = QApplication.primaryScreen()
+        screen_geometry = screen.availableGeometry()
+        # Get window geometry
+        window_geometry = self.frameGeometry()
+        # Calculate center
+        center_point = screen_geometry.center()
+        window_geometry.moveCenter(center_point)
+        self.move(window_geometry.topLeft())
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:

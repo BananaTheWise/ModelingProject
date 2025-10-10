@@ -19,6 +19,7 @@ class DashboardWindow(QMainWindow):
         self.setFixedSize(310, 557)
         self.setWindowFlags(Qt.FramelessWindowHint)
         self.setAttribute(Qt.WA_TranslucentBackground)
+        self.center_on_screen()
 
         central = QWidget()
         central.setStyleSheet("""
@@ -118,6 +119,16 @@ class DashboardWindow(QMainWindow):
         self.Team.show()
         self.close()
 
+    def center_on_screen(self):
+        # Get screen geometry
+        screen = QApplication.primaryScreen()
+        screen_geometry = screen.availableGeometry()
+        # Get window geometry
+        window_geometry = self.frameGeometry()
+        # Calculate center
+        center_point = screen_geometry.center()
+        window_geometry.moveCenter(center_point)
+        self.move(window_geometry.topLeft())
 
     def mousePressEvent(self, event):
         self._drag_pos = event.globalPosition().toPoint() - self.pos()
