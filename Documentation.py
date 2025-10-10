@@ -72,10 +72,10 @@ queue length: how many cars are in the queue.
 Throughput: how many cars passed by a single green traffic light.
 
 6) Verification and validation: 
-We will verify the model by checking if it’s a true representation of our road and will run according to peak times of traffic, we will then observe the flow with the government through animated runs to verify it is working.
+We will verify the model by checking if itâs a true representation of our road and will run according to peak times of traffic, we will then observe the flow with the government through animated runs to verify it is working.
 Validation: we will compare the output results with the output of real system by loading in previous data of current road if there is >=85% similarity then the model is verified.
 
-7) We will run the simulation for 3 weeks for time-of-day from 12 pm to 7pm. We will run this simulation 3 times and analyze the output of each run. If the performance turns out as we expected then we will document the model and simulation and submit it for future maintenance, then we will implement the model in real life. Else, if the performance doesn’t improve then we will simulate it more than 3 times and if that doesn’t work, we will change the simulation duration to different periods and different time period.
+7) We will run the simulation for 3 weeks for time-of-day from 12 pm to 7pm. We will run this simulation 3 times and analyze the output of each run. If the performance turns out as we expected then we will document the model and simulation and submit it for future maintenance, then we will implement the model in real life. Else, if the performance doesnât improve then we will simulate it more than 3 times and if that doesnât work, we will change the simulation duration to different periods and different time period.
         """)
         layout.addWidget(self.text_area)
 

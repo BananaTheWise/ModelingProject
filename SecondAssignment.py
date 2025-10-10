@@ -158,7 +158,7 @@ class SecondAssignment(QMainWindow):
             current_page.end_val = end
             current_page.probs_val = probs
 
-        # If not last page → go next normally
+        # If not last page â go next normally
         if idx < self.stacked.count() - 1:
             self.stacked.setCurrentIndex(idx + 1)
         else:
@@ -190,7 +190,12 @@ class SecondAssignment(QMainWindow):
                 Temp1 = Page4.generate_interarrival_distribution(p1["start"], p1["end"], probs1)
                 Temp2 = Page4.generate_service_time_distribution(p2["start"], p2["end"], probs2)
                 queue = Page4.simulate_queue(Temp1, Temp2, p3["instances"])
+                Page4.print_table_terminal(
 
+                )
+                Page4.print_table_terminal(
+
+                )
                 Page4.print_table_terminal(
                     queue,
                     ["user", "interarrival_time", "arrival_time", "service_time",
@@ -255,7 +260,7 @@ class SecondAssignment(QMainWindow):
                 "traffic_type": "Traffic"
             },
             "page4": {
-                "output_option": "📊 Excel"  # default selected option
+                "output_option": "ð Excel"  # default selected option
             }
         }
 
@@ -513,9 +518,9 @@ class Page4(BasePage):
 
         # --- Radio Buttons with Read-only Descriptions ---
         options = [
-            ("📊 Excel", "Export results to an Excel (.xlsx) file"),
-            ("🖥️ Python GUI", "Display results inside the app interface"),
-            ("💻 Terminal", "Print results in the console output")
+            ("ð Excel", "Export results to an Excel (.xlsx) file"),
+            ("ð¥ï¸ Python GUI", "Display results inside the app interface"),
+            ("ð» Terminal", "Print results in the console output")
         ]
 
         self.button_group = QButtonGroup(self)
@@ -592,7 +597,7 @@ class Page4(BasePage):
             total += p
             cumulative.append(round(total, 3))
 
-        # Assign random-digit ranges (001–000)
+        # Assign random-digit ranges (001â000)
         random_ranges = []
         current_start = 1  # start from 001
 
@@ -631,7 +636,7 @@ class Page4(BasePage):
         [Service Time, Probability, Cumulative Probability, Random-Digit Assignment]
 
         Random-digit assignment:
-          starts at 01 and wraps so the final range ends at 00 (1–100 scale).
+          starts at 01 and wraps so the final range ends at 00 (1â100 scale).
         """
 
         times = list(range(start, end + 1))
@@ -652,7 +657,7 @@ class Page4(BasePage):
             total += p
             cumulative.append(round(total, 3))
 
-        # Assign random-digit ranges (01–00)
+        # Assign random-digit ranges (01â00)
         random_ranges = []
         current_start = 1  # start from 01
 
@@ -713,7 +718,7 @@ class Page4(BasePage):
                 if start <= random_digit <= end or (end == 1000 and random_digit == 1000):
                     interarrival_time = time
                     break
-                # wrap case (001–000)
+                # wrap case (001â000)
                 if start > end and (random_digit >= start or random_digit <= end):
                     interarrival_time = time
                     break
@@ -750,7 +755,7 @@ class Page4(BasePage):
                 if start <= random_digit <= end or (end == 100 and random_digit == 100):
                     service_time = time
                     break
-                # wrap around case like 84–00
+                # wrap around case like 84â00
                 if start > end and (random_digit >= start or random_digit <= end):
                     service_time = time
                     break

@@ -50,7 +50,7 @@ class TeamWindow(QMainWindow):
 
         self.back_btn = QPushButton("Back")
         self.back_btn.setStyleSheet("background-color: #d9534f; color: white; font-weight: bold; border-radius: 10px; padding: 8px;")
-        self.back_btn.clicked.connect(self.BackToMain)  # ✅ fixed here
+        self.back_btn.clicked.connect(self.BackToMain)  # â fixed here
         layout.addWidget(self.back_btn)
 
         central.setLayout(layout)
