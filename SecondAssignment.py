@@ -73,7 +73,7 @@ class BasePage(QWidget):
         field = QLineEdit()
         field.setPlaceholderText(placeholder)
         field.setFixedSize(width, height)
-        field.setStyleSheet("background: #fff; border-radius: 8px;")
+        field.setStyleSheet("color: black; background: #fff; border-radius: 8px;")
         return field
 
 ###########################################################################
@@ -189,18 +189,19 @@ class SecondAssignment(QMainWindow):
 
                 Temp1 = Page4.generate_interarrival_distribution(p1["start"], p1["end"], probs1)
                 Temp2 = Page4.generate_service_time_distribution(p2["start"], p2["end"], probs2)
-                queue = Page4.simulate_queue(Temp1, Temp2, p3["instances"])
+                queue = Page4.simulate_queue(Temp1, Temp2, p3["instances"])[0]
                 Page4.print_table_terminal(
-
+                Temp1, ["Interarrival Time", "Probability", "Cumulative Probability", "Range"]
                 )
                 Page4.print_table_terminal(
-
+                Temp2, ["Service Time", "Probability", "Cumulative Probability", "Range"]
                 )
                 Page4.print_table_terminal(
                     queue,
                     ["user", "interarrival_time", "arrival_time", "service_time",
                      "service_begin", "waiting_time", "service_end", "time_in_system", "idle_time"]
                 )
+                # print(queue[1])
             # Optionally close the window after action
             self.close()
 
@@ -320,6 +321,7 @@ class Page1(BasePage):
         self.start_field = self.make_field("Start")
         self.start_field.setText(str(defaults.get("start", "")))
         self.start_field.setValidator(QIntValidator(1, 10000))
+
 
         self.end_field = self.make_field("End")
         self.end_field.setText(str(defaults.get("end", "")))
@@ -624,7 +626,7 @@ class Page4(BasePage):
             ]
             table.append(row)
 
-        print("GID DEBUG TABLE:", table)
+        # print("GID DEBUG TABLE:", table)
         return table
 
     @staticmethod
@@ -686,7 +688,7 @@ class Page4(BasePage):
             ]
             table.append(row)
 
-        print("GSTD Debug Table:", table)
+        # print("GSTD Debug Table:", table)
         return table
 
     @staticmethod
@@ -725,7 +727,7 @@ class Page4(BasePage):
 
             table.append([user_id, f"{random_digit:03d}", interarrival_time])
 
-        print("AIT Debug Table:", table)
+        # print("AIT Debug Table:", table)
         return table
 
     @staticmethod
@@ -762,10 +764,9 @@ class Page4(BasePage):
 
             table.append([cust_id, f"{random_digit:02d}", service_time])
 
-        print("AST Debug Table:", table)
+        # print("AST Debug Table:", table)
         return table
 
-    # --- Step 2: Full Queue Simulation ---
     @staticmethod
     def simulate_queue(interarrival_dist, service_dist, num_users):
         inter_table = Page4.assign_interarrival_times(interarrival_dist, num_users)
@@ -776,8 +777,8 @@ class Page4(BasePage):
 
         for i in range(num_users):
             user = i + 1
-            interarrival_time = float(inter_table[i][2])  # ensure numeric
-            service_time = float(service_table[i][2])  # ensure numeric
+            interarrival_time = float(inter_table[i][2])
+            service_time = float(service_table[i][2])
 
             if i == 0:
                 arrival_time = interarrival_time
@@ -804,8 +805,43 @@ class Page4(BasePage):
                 idle_time
             ])
 
-        print("SQ Debug Table:", simulation)
-        return simulation
+        # --- Compute Performance Metrics ---
+        total_waiting = sum(row[5] for row in simulation)
+        total_service = sum(row[3] for row in simulation)
+        total_time_in_system = sum(row[7] for row in simulation)
+        total_idle = sum(row[8] for row in simulation)
+
+        num_waited = sum(1 for row in simulation if row[5] > 0)
+        total_customers = len(simulation)
+
+        total_simulation_time = simulation[-1][6]  # time when last service ended
+
+        avg_waiting_time = total_waiting / total_customers
+        prob_waiting = num_waited / total_customers
+        avg_service_time = total_service / total_customers
+        avg_time_in_system = total_time_in_system / total_customers
+        server_utilization = total_service / total_simulation_time
+        prob_server_idle = 1 - server_utilization
+
+        metrics = {
+            "Average Waiting Time": round(avg_waiting_time, 3),
+            "Probability of Waiting": round(prob_waiting, 3),
+            "Average Service Time": round(avg_service_time, 3),
+            "Average Time in System": round(avg_time_in_system, 3),
+            "Server Utilization": round(server_utilization, 3),
+            "Probability Server Idle": round(prob_server_idle, 3)
+        }
+
+        # print("SQ Debug Table:", simulation)
+        Page4.print_table_terminal(
+            inter_table, ["User", "Random", "Interarrival Time"]
+        )
+        Page4.print_table_terminal(
+            service_table, ["User", "Random", "Service Time"]
+        )
+        print("Queue Metrics:", metrics)
+
+        return [simulation, metrics]
 
     # Function 1: Print table in terminal
     @staticmethod
