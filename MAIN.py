@@ -73,6 +73,8 @@ class DashboardWindow(QMainWindow):
             b.setFixedSize(btn_width, btn_height)
             if n == "Assignment 2":
                 b.clicked.connect(self.open_second_assignment)
+            elif n == "Assignment 3":
+                b.clicked.connect(self.open_third_assignment)
             elif n == "Documentation":
                 b.clicked.connect(self.open_Documentation)
             elif n == "Team":
@@ -105,6 +107,12 @@ class DashboardWindow(QMainWindow):
         from SecondAssignment import SecondAssignment
         self.second_window = SecondAssignment()
         self.second_window.show()
+        self.close()
+
+    def open_third_assignment(self):
+        from ThirdAssignment import ThirdAssignment
+        self.third_window = ThirdAssignment()
+        self.third_window.show()
         self.close()
 
     def open_Documentation(self):
