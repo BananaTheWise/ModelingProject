@@ -13,7 +13,6 @@ def assign_distribution_table(start, end, probabilities, value_key):
         cumulative += p
         count = int(p * 100)
         
-        # This logic exactly replicates the original string-based range creation
         upper = (lower + count - 1)
         if upper >= 100:
             upper = upper % 100
@@ -39,13 +38,12 @@ def lookup_value_from_table(rd, table, value_key):
         lower = int(lower_str)
         upper = 100 if upper_str == "00" else int(upper_str)
 
-        if lower <= upper:  # Normal case, e.g., 01-25
+        if lower <= upper:
             if lower <= rd <= upper:
                 return row[value_key]
-        else:  # Wrap-around case, e.g., 91-00
+        else:
             if rd >= lower or rd <= upper:
                 return row[value_key]
-    # Fallback in case of any issue
     return table[-1][value_key] if table else 0
 
 
@@ -68,16 +66,18 @@ def run_inventory_simulation(inputs):
     lead_probs = [float(p) for p in p3["probabilities"].split()]
     lead_table = assign_distribution_table(p3["start"], p3["end"], lead_probs, "Lead time")
 
-    # --- Simulation Core Logic (Identical to M,N Inventory) ---
     simulation_log = []
     inventory = starting_inventory
     lead_time_remaining = None
     backorder = 0
     shortage_days = 0
     total_ending_inventory = 0
+    cycle_number = 1
 
     for day in range(1, simulation_days + 1):
         cycle_day = (day - 1) % cycle_length + 1
+        if cycle_day == 1 and day != 1:
+            cycle_number += 1
 
         if lead_time_remaining is not None and lead_time_remaining == 0:
             if backorder > 0:
@@ -113,7 +113,7 @@ def run_inventory_simulation(inputs):
             
         total_ending_inventory += ending_inventory
 
-        order_qty_val, rd_lead_val, lead_days_val = 0, 0, 0
+        order_qty_val, rd_lead_val = 0, 0
         if cycle_day == cycle_length and ending_inventory <= restock_condition:
             order_qty_val = order_quantity
             rd_lead_val = random.randint(1, 100)
@@ -122,25 +122,31 @@ def run_inventory_simulation(inputs):
             days_until_arrival = lead_time_remaining
 
         inventory = ending_inventory
+        
+        cycle_display = cycle_number if cycle_day == 1 else ""
 
         simulation_log.append({
-            "day": day, "begin_inv": beginning_inventory, "rd_demand": rd_demand,
-            "demand": demand, "end_inv": ending_inventory, "backorder": backorder,
-            "order_qty": order_qty_val, "rd_lead": rd_lead_val, "lead_time": lead_days_val,
-            "days_until_arrival": days_until_arrival
+            "Cycle": cycle_display,
+            "Day": cycle_day,
+            "Begin Inv": beginning_inventory,
+            "RD Demand": rd_demand,
+            "Demand": demand,
+            "End Inv": ending_inventory,
+            "Backorder": backorder,
+            "Order Qty": order_qty_val,
+            "RD Lead": rd_lead_val,
+            "Days Until Arrival": days_until_arrival
         })
 
-    # --- Calculate Metrics ---
     metrics = {
         "Total Ending Inventory": total_ending_inventory,
         "Average Ending Inventory": total_ending_inventory / simulation_days if simulation_days > 0 else 0,
-        "Total Backorders": sum(row['backorder'] for row in simulation_log),
-        "Number of Orders Placed": sum(1 for row in simulation_log if row['order_qty'] > 0),
+        "Total Backorders": sum(row['Backorder'] for row in simulation_log),
+        "Number of Orders Placed": sum(1 for row in simulation_log if row['Order Qty'] > 0),
         "Shortage Days": shortage_days,
         "Shortage Percentage": (shortage_days / simulation_days) * 100 if simulation_days > 0 else 0
     }
 
-    # Rename table keys for consistent output
     final_demand_table = [{"Demand": r["Demand"], "Prob": r["Prob"], "Cum_Prob": r["Cum_Prob"], "Random_Digits": r["Random_Digits"]} for r in demand_table]
     final_lead_table = [{"Lead time": r["Lead time"], "Prob": r["Prob"], "Cum_Prob": r["Cum_Prob"], "Random_Digits": r["Random_Digits"]} for r in lead_table]
 

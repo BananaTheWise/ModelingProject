@@ -553,8 +553,8 @@ class GraphOutputWindow(QMainWindow):
         ax = fig.add_subplot(111)
         ax.set_facecolor(dark_bg)
 
-        days = [row['day'] for row in simulation_log]
-        inventory_levels = [row['end_inv'] for row in simulation_log]
+        days = [i + 1 for i in range(len(simulation_log))]
+        inventory_levels = [row['End Inv'] for row in simulation_log]
 
         ax.plot(days, inventory_levels, label='Ending Inventory', color=line_color)
 
