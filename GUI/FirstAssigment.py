@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 import sys
 
+
 class Documentation(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -45,7 +46,7 @@ class Documentation(QMainWindow):
         # Set some sample text (replace with your actual documentation)
         self.text_area.setText("""
 1) Problem Formulation: We have traffic on a 4-way conjunction road, traffic happens during peak hours, regular traffic lights may not adapt well to real time traffic variations leading to a long queue and unhappy citizens.
-        
+
 2) Goals and objectives: primary goal of this simulation is to improve traffic control at a 4 way conjunction road and we aim to:
 - represent the real-world traffic
 - Asses how different traffic light cycles affect the traffic
@@ -119,6 +120,7 @@ Validation: we will compare the output results with the output of real system by
         self.main = DashboardWindow()
         self.main.show()
         self.close()
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

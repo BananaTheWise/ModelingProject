@@ -19,64 +19,9 @@ from PySide6.QtWidgets import QMessageBox
 import random
 from PySide6.QtCore import Qt
 from MAIN import DashboardWindow
+from GUI.Basics import BasePage
+from ALGORITHMS.Second import *
 
-class BasePage(QWidget):
-    def __init__(self):
-        super().__init__()
-        self.main_layout = QVBoxLayout(self)
-        self.main_layout.setSpacing(12)
-        self.main_layout.setContentsMargins(15, 15, 15, 15)
-        self.main_layout.setAlignment(Qt.AlignTop)
-
-        # Navigation layout at bottom
-        self.nav_layout = QHBoxLayout()
-        self.nav_layout.setContentsMargins(0, 0, 0, 0)
-
-    def add_nav_buttons(self, prev_callback=None, next_callback=None):
-
-        self.prev_btn = QPushButton("Back")
-        self.next_btn = QPushButton("Next")
-        self.prev_btn.setFixedSize(100,30)
-        self.next_btn.setFixedSize(100,30)
-        self.prev_btn.setStyleSheet("""
-            background-color: #C23731;
-            color: #1E1E1E;
-            border: 2px solid black;
-            border-radius: 15px;  /* bigger = more rounded */
-        """)
-
-        self.next_btn.setStyleSheet("""
-            background-color: #61AF5E;
-            color: #1E1E1E;
-            border: 2px solid black;
-            border-radius: 15px;  /* bigger = more rounded */
-        """)
-
-        if prev_callback:
-            self.prev_btn.clicked.connect(prev_callback)
-        if next_callback:
-            self.next_btn.clicked.connect(next_callback)
-
-        # Add buttons to nav layout with stretch between
-        self.nav_layout.addWidget(self.prev_btn, alignment=Qt.AlignLeft)
-        self.nav_layout.addStretch()
-        self.nav_layout.addWidget(self.next_btn, alignment=Qt.AlignRight)
-
-    def centered_row(self, widget):
-        row = QHBoxLayout()
-        row.addStretch()
-        row.addWidget(widget)
-        row.addStretch()
-        return row
-
-    def make_field(self, placeholder, width=60, height=20):
-        field = QLineEdit()
-        field.setPlaceholderText(placeholder)
-        field.setFixedSize(width, height)
-        field.setStyleSheet("color: black; background: #fff; border-radius: 8px;")
-        return field
-
-###########################################################################
 
 class SecondAssignment(QMainWindow):
 
@@ -187,21 +132,28 @@ class SecondAssignment(QMainWindow):
                 probs1 = list(map(float, p1["probabilities"].split()))
                 probs2 = list(map(float, p2["probabilities"].split()))
 
-                Temp1 = Page4.generate_interarrival_distribution(p1["start"], p1["end"], probs1)
-                Temp2 = Page4.generate_service_time_distribution(p2["start"], p2["end"], probs2)
-                queue = Page4.simulate_queue(Temp1, Temp2, p3["instances"])[0]
-                Page4.print_table_terminal(
-                Temp1, ["Interarrival Time", "Probability", "Cumulative Probability", "Range"]
+                Interarrival = generate_interarrival_distribution(p1["start"], p1["end"], probs1)
+                ServiceTime = generate_service_time_distribution(p2["start"], p2["end"], probs2)
+                queue,metrics,Inter_table,Service_table = simulate_queue(Interarrival, ServiceTime, p3["instances"])
+                Output.print_table_terminal(
+                Interarrival, ["Interarrival Time", "Probability", "Cumulative Probability", "Range"]
                 )
-                Page4.print_table_terminal(
-                Temp2, ["Service Time", "Probability", "Cumulative Probability", "Range"]
+                Output.print_table_terminal(
+                ServiceTime, ["Service Time", "Probability", "Cumulative Probability", "Range"]
                 )
-                Page4.print_table_terminal(
+                Output.print_table_terminal(
+                    Inter_table, ["User", "Random", "Interarrival Time"]
+                )
+                Output.print_table_terminal(
+                    Service_table, ["User", "Random", "Service Time"]
+                )
+                Output.print_table_terminal(
                     queue,
                     ["user", "interarrival_time", "arrival_time", "service_time",
                      "service_begin", "waiting_time", "service_end", "time_in_system", "idle_time"]
                 )
-                # print(queue[1])
+                print("Queue Metrics:", metrics)
+
             # Optionally close the window after action
             self.close()
 
@@ -261,7 +213,7 @@ class SecondAssignment(QMainWindow):
                 "traffic_type": "Traffic"
             },
             "page4": {
-                "output_option": "ð Excel"  # default selected option
+                "output_option": "Excel"  # default selected option
             }
         }
 
@@ -290,7 +242,6 @@ class SecondAssignment(QMainWindow):
         else:
             self.go_prev()
 
-###########################################################################
 
 class Page1(BasePage):
     def __init__(self, prev_callback=None, next_callback=None, defaults=None):
@@ -520,9 +471,9 @@ class Page4(BasePage):
 
         # --- Radio Buttons with Read-only Descriptions ---
         options = [
-            ("ð Excel", "Export results to an Excel (.xlsx) file"),
-            ("ð¥ï¸ Python GUI", "Display results inside the app interface"),
-            ("ð» Terminal", "Print results in the console output")
+            ("Excel", "Export results to an Excel (.xlsx) file"),
+            ("Python GUI", "Display results inside the app interface"),
+            ("Terminal", "Print results in the console output")
         ]
 
         self.button_group = QButtonGroup(self)
@@ -569,316 +520,43 @@ class Page4(BasePage):
         selected = self.button_group.checkedButton()
         return selected.text() if selected else None
 
-    @staticmethod
-    def generate_interarrival_distribution(start, end, probabilities=None):
-        """
-        Generate a 2D list for interarrival time distribution.
-
-        Columns:
-        [Interarrival Time, Probability, Cumulative Probability, Random-Digit Assignment]
-
-        Random-digit assignment:
-          starts at 001 and wraps so the final range ends at 000.
-        """
-
-        times = list(range(start, end + 1))
-        n = len(times)
-
-        # If equal probabilities selected
-        if probabilities is None:
-            probabilities = [1 / n] * n
-
-        # Safety check
-        if abs(sum(probabilities) - 1) > 1e-6:
-            raise ValueError("Sum of probabilities must equal 1.")
-
-        # Compute cumulative probabilities
-        cumulative = []
-        total = 0
-        for p in probabilities:
-            total += p
-            cumulative.append(round(total, 3))
-
-        # Assign random-digit ranges (001â000)
-        random_ranges = []
-        current_start = 1  # start from 001
-
-        for i, p in enumerate(probabilities):
-            span = round(p * 1000)
-            if i == n - 1:
-                # Last range ends at 000
-                random_ranges.append(f"{current_start:03d} - 000")
-            else:
-                end_range = current_start + span - 1
-                random_ranges.append(f"{current_start:03d} - {end_range:03d}")
-                current_start = end_range + 1
-                if current_start > 1000:
-                    current_start -= 1000
-
-        # Combine into 2D list
-        table = []
-        for i in range(n):
-            row = [
-                times[i],
-                round(probabilities[i], 3),
-                cumulative[i],
-                random_ranges[i],
-            ]
-            table.append(row)
-
-        # print("GID DEBUG TABLE:", table)
-        return table
-
-    @staticmethod
-    def generate_service_time_distribution(start, end, probabilities=None):
-        """
-        Generate a 2D list for service-time distribution.
-
-        Columns:
-        [Service Time, Probability, Cumulative Probability, Random-Digit Assignment]
-
-        Random-digit assignment:
-          starts at 01 and wraps so the final range ends at 00 (1â100 scale).
-        """
-
-        times = list(range(start, end + 1))
-        n = len(times)
-
-        # If equal probabilities are not provided
-        if probabilities is None:
-            probabilities = [1 / n] * n
-
-        # Validate
-        if abs(sum(probabilities) - 1) > 1e-6:
-            raise ValueError("Sum of probabilities must equal 1.")
-
-        # Compute cumulative probabilities
-        cumulative = []
-        total = 0
-        for p in probabilities:
-            total += p
-            cumulative.append(round(total, 3))
-
-        # Assign random-digit ranges (01â00)
-        random_ranges = []
-        current_start = 1  # start from 01
-
-        for i, p in enumerate(probabilities):
-            span = round(p * 100)  # because 100 total digits
-            if span == 0:
-                span = 1  # ensure at least 1 digit
-
-            if i == n - 1:
-                random_ranges.append(f"{current_start:02d} - 00")
-            else:
-                end_range = current_start + span - 1
-                random_ranges.append(f"{current_start:02d} - {end_range:02d}")
-                current_start = end_range + 1
-                if current_start > 100:
-                    current_start -= 100
-
-        # Combine into 2D table
-        table = []
-        for i in range(n):
-            row = [
-                times[i],
-                round(probabilities[i], 3),
-                cumulative[i],
-                random_ranges[i],
-            ]
-            table.append(row)
-
-        # print("GSTD Debug Table:", table)
-        return table
-
-    @staticmethod
-    def assign_interarrival_times(distribution_table, num_users=10):
-        """
-        Generate a 2D list showing:
-        [User, Random Digit, Interarrival Time]
-
-        distribution_table: 2D list from generate_interarrival_distribution
-        num_users: how many users to simulate
-        """
-
-        # --- Parse ranges from distribution_table ---
-        parsed_ranges = []
-        for time, prob, cum_prob, r_range in distribution_table:
-            start_str, end_str = r_range.replace(' ', '').split('-')
-            start = int(start_str)
-            end = 1000 if end_str == '000' else int(end_str)
-            parsed_ranges.append((time, start, end))
-
-        # --- Generate random digits and assign times ---
-        table = []
-        for user_id in range(1, num_users + 1):
-            random_digit = random.randint(1, 1000)
-
-            # Find which interval this random digit belongs to
-            interarrival_time = None
-            for time, start, end in parsed_ranges:
-                if start <= random_digit <= end or (end == 1000 and random_digit == 1000):
-                    interarrival_time = time
-                    break
-                # wrap case (001â000)
-                if start > end and (random_digit >= start or random_digit <= end):
-                    interarrival_time = time
-                    break
-
-            table.append([user_id, f"{random_digit:03d}", interarrival_time])
-
-        # print("AIT Debug Table:", table)
-        return table
-
-    @staticmethod
-    def assign_service_times(distribution_table, num_customers=10):
-        """
-        Generate a 2D list:
-        [Customer, Random Digit, Service Time]
-
-        distribution_table: from generate_service_distribution
-        num_customers: number of customers to simulate
-        """
-
-        parsed_ranges = []
-        for time, prob, cum_prob, r_range in distribution_table:
-            start_str, end_str = r_range.replace(' ', '').split('-')
-            start = int(start_str)
-            end = 100 if end_str == '00' else int(end_str)
-            parsed_ranges.append((time, start, end))
-
-        # --- Generate random digits and assign service times ---
-        table = []
-        for cust_id in range(1, num_customers + 1):
-            random_digit = random.randint(1, 100)
-
-            service_time = None
-            for time, start, end in parsed_ranges:
-                if start <= random_digit <= end or (end == 100 and random_digit == 100):
-                    service_time = time
-                    break
-                # wrap around case like 84â00
-                if start > end and (random_digit >= start or random_digit <= end):
-                    service_time = time
-                    break
-
-            table.append([cust_id, f"{random_digit:02d}", service_time])
-
-        # print("AST Debug Table:", table)
-        return table
-
-    @staticmethod
-    def simulate_queue(interarrival_dist, service_dist, num_users):
-        inter_table = Page4.assign_interarrival_times(interarrival_dist, num_users)
-        service_table = Page4.assign_service_times(service_dist, num_users)
-
-        simulation = []
-        server_available_time = 0
-
-        for i in range(num_users):
-            user = i + 1
-            interarrival_time = float(inter_table[i][2])
-            service_time = float(service_table[i][2])
-
-            if i == 0:
-                arrival_time = interarrival_time
-            else:
-                arrival_time = simulation[i - 1][2] + interarrival_time
-
-            service_begin = max(arrival_time, server_available_time)
-            waiting_time = service_begin - arrival_time
-            service_end = service_begin + service_time
-            time_in_system = waiting_time + service_time
-            idle_time = max(0, arrival_time - server_available_time)
-
-            server_available_time = service_end
-
-            simulation.append([
-                user,
-                interarrival_time,
-                arrival_time,
-                service_time,
-                service_begin,
-                waiting_time,
-                service_end,
-                time_in_system,
-                idle_time
-            ])
-
-        # --- Compute Performance Metrics ---
-        total_waiting = sum(row[5] for row in simulation)
-        total_service = sum(row[3] for row in simulation)
-        total_time_in_system = sum(row[7] for row in simulation)
-        total_idle = sum(row[8] for row in simulation)
-
-        num_waited = sum(1 for row in simulation if row[5] > 0)
-        total_customers = len(simulation)
-
-        total_simulation_time = simulation[-1][6]  # time when last service ended
-
-        avg_waiting_time = total_waiting / total_customers
-        prob_waiting = num_waited / total_customers
-        avg_service_time = total_service / total_customers
-        avg_time_in_system = total_time_in_system / total_customers
-        server_utilization = total_service / total_simulation_time
-        prob_server_idle = 1 - server_utilization
-
-        metrics = {
-            "Average Waiting Time": round(avg_waiting_time, 3),
-            "Probability of Waiting": round(prob_waiting, 3),
-            "Average Service Time": round(avg_service_time, 3),
-            "Average Time in System": round(avg_time_in_system, 3),
-            "Server Utilization": round(server_utilization, 3),
-            "Probability Server Idle": round(prob_server_idle, 3)
-        }
-
-        # print("SQ Debug Table:", simulation)
-        Page4.print_table_terminal(
-            inter_table, ["User", "Random", "Interarrival Time"]
-        )
-        Page4.print_table_terminal(
-            service_table, ["User", "Random", "Service Time"]
-        )
-        print("Queue Metrics:", metrics)
-
-        return [simulation, metrics]
-
+class Output():
     # Function 1: Print table in terminal
     @staticmethod
     def print_table_terminal(table, headers=None):
-            """
-            Prints a neatly aligned 2D table in the terminal with optional headers.
-            Automatically adjusts column widths and handles numeric values.
-            """
-            if not table:
-                print("(Empty table)")
-                return
+        """
+        Prints a neatly aligned 2D table in the terminal with optional headers.
+        Automatically adjusts column widths and handles numeric values.
+        """
+        if not table:
+            print("(Empty table)")
+            return
 
-            # Convert all cells to strings
-            str_table = [[str(cell) for cell in row] for row in table]
+        # Convert all cells to strings
+        str_table = [[str(cell) for cell in row] for row in table]
 
-            # Include headers if provided
-            if headers:
-                str_headers = [str(h) for h in headers]
-                data = [str_headers] + str_table
-            else:
-                data = str_table
+        # Include headers if provided
+        if headers:
+            str_headers = [str(h) for h in headers]
+            data = [str_headers] + str_table
+        else:
+            data = str_table
 
-            # Compute column widths
-            col_widths = [max(len(row[i]) for row in data) for i in range(len(data[0]))]
+        # Compute column widths
+        col_widths = [max(len(row[i]) for row in data) for i in range(len(data[0]))]
 
-            # Helper to format a row
-            def format_row(row):
-                return " | ".join(str(row[i]).ljust(col_widths[i]) for i in range(len(row)))
+        # Helper to format a row
+        def format_row(row):
+            return " | ".join(str(row[i]).ljust(col_widths[i]) for i in range(len(row)))
 
-            # Print header
-            if headers:
-                print(format_row(headers))
-                print("-" * (sum(col_widths) + 3 * (len(col_widths) - 1)))
+        # Print header
+        if headers:
+            print(format_row(headers))
+            print("-" * (sum(col_widths) + 3 * (len(col_widths) - 1)))
 
-            # Print each row
-            for row in table:
-                print(format_row(row))
+        # Print each row
+        for row in table:
+            print(format_row(row))
 
     # Function 2: Save table to .txt file
     def save_table_txt(table, filename="table_output.txt", headers=None):
@@ -909,7 +587,7 @@ class Page4(BasePage):
 
         row_offset = 1
         if headers:
-            for col, header in enumerate(headers, start=1):
+            for col, header in enumerate(headers, start=1):  # [ (0,"range") , (1,"user") , "(2,Arrival time") ]
                 ws.cell(row=1, column=col, value=header)
             row_offset = 2
 
@@ -931,4 +609,3 @@ class Page4(BasePage):
 
         wb.save(filename)
         print(f"Table saved to {filename}")
-

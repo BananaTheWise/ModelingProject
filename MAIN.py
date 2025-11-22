@@ -10,7 +10,6 @@ from PySide6.QtCore import Qt
 import sys
 
 
-
 class DashboardWindow(QMainWindow):
 
     def __init__(self):
@@ -75,6 +74,8 @@ class DashboardWindow(QMainWindow):
                 b.clicked.connect(self.open_second_assignment)
             elif n == "Assignment 3":
                 b.clicked.connect(self.open_third_assignment)
+            elif n == "Assignment 4":
+                b.clicked.connect(self.open_fourth_assignment)
             elif n == "Documentation":
                 b.clicked.connect(self.open_Documentation)
             elif n == "Team":
@@ -104,25 +105,31 @@ class DashboardWindow(QMainWindow):
         print("Button pressed (not implemented)")
 
     def open_second_assignment(self):
-        from SecondAssignment import SecondAssignment
+        from GUI.SecondAssignment import SecondAssignment
         self.second_window = SecondAssignment()
         self.second_window.show()
         self.close()
 
     def open_third_assignment(self):
-        from ThirdAssignment import ThirdAssignment
+        from GUI.ThirdAssignment import ThirdAssignment
         self.third_window = ThirdAssignment()
         self.third_window.show()
         self.close()
 
+    def open_fourth_assignment(self):
+        from GUI.FourthAssignment import FourthAssignment
+        self.fourth_window = FourthAssignment()
+        self.fourth_window.show()
+        self.close()
+
     def open_Documentation(self):
-        from Documentation import Documentation
+        from GUI.FirstAssigment import Documentation
         self.Documentation = Documentation()
         self.Documentation.show()
         self.close()
 
     def open_Team(self):
-        from Team import TeamWindow
+        from GUI.Team import TeamWindow
         self.Team = TeamWindow()
         self.Team.show()
         self.close()

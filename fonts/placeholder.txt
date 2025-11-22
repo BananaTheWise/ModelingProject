@@ -1,0 +1,2 @@
+Please place your .ttf font files in this directory.
+For example: Inter-Regular.ttf
