@@ -392,7 +392,20 @@ class DistributionPage(BasePage):
         self.main_layout.addSpacerItem(QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed))
 
         self.equal_checkbox = QCheckBox("Equal")
-        self.equal_checkbox.setStyleSheet("color: white;")
+        self.equal_checkbox.setStyleSheet("""
+            QCheckBox { color: white; font-size: 14px; }
+            QCheckBox::indicator {
+                border: 2px solid #CDCDCD;
+                border-radius: 4px;
+                width: 15px;
+                height: 15px;
+                background-color: #4C4C4C;
+            }
+            QCheckBox::indicator:checked {
+                background-color: #61AF5E;
+                border: 2px solid #F5F5F5;
+            }
+        """)
         equal_text = QLabel("All probabilities are the same")
         equal_text.setStyleSheet("color: gray; font-size: 12px;")
         self.equal_checkbox.setChecked(defaults.get("equal", False))
@@ -445,7 +458,20 @@ class Page4(BasePage):
         options = ["Terminal", "Excel", "txt", "gui", "graph", "JSON", "SQLite", "Exit"]
         for option in options:
             radio_button = QRadioButton(option)
-            radio_button.setStyleSheet("color: white; font-size: 14px;")
+            radio_button.setStyleSheet("""
+                QRadioButton { color: white; font-size: 14px; }
+                QRadioButton::indicator {
+                    border: 2px solid #CDCDCD;
+                    border-radius: 9px;
+                    width: 15px;
+                    height: 15px;
+                    background-color: #4C4C4C;
+                }
+                QRadioButton::indicator:checked {
+                    background-color: #61AF5E;
+                    border: 2px solid #F5F5F5;
+                }
+            """)
             self.main_layout.addWidget(radio_button)
             self.button_group.addButton(radio_button)
 
