@@ -25,6 +25,7 @@ from PySide6.QtWidgets import (
     QTableWidget,
     QTableWidgetItem,
     QHeaderView,
+    QTabWidget,
 )
 from PySide6.QtCore import Qt, QRegularExpression
 from PySide6.QtGui import QRegularExpressionValidator
@@ -198,27 +199,18 @@ class FourthAssignment(QMainWindow):
         try:
             with open(path, "w", newline="") as f:
                 writer = csv.writer(f)
-                writer.writerow(["--- Demand Distribution ---"])
-                writer.writerow(demand_table[0].keys())
-                for row in demand_table:
-                    writer.writerow(row.values())
-
-                writer.writerow([])
-                writer.writerow(["--- Lead Time Distribution ---"])
-                writer.writerow(lead_table[0].keys())
-                for row in lead_table:
-                    writer.writerow(row.values())
-
-                writer.writerow([])
-                writer.writerow(["--- Simulation Log ---"])
-                writer.writerow(simulation_log[0].keys())
-                for row in simulation_log:
-                    writer.writerow(row.values())
-                    
-                writer.writerow([])
-                writer.writerow(["--- Simulation Metrics ---"])
-                writer.writerow(metrics.keys())
-                writer.writerow(metrics.values())
+                def write_table(title, data):
+                    writer.writerow([f"--- {title} ---"])
+                    if not data: return
+                    writer.writerow(data[0].keys())
+                    for row in data:
+                        writer.writerow(row.values())
+                    writer.writerow([])
+                
+                write_table("Metrics", [metrics])
+                write_table("Demand Distribution", demand_table)
+                write_table("Lead Time Distribution", lead_table)
+                write_table("Simulation Log", simulation_log)
 
             QMessageBox.information(self, "Success", f"Output saved to {os.path.abspath(path)}")
         except Exception as e:
@@ -487,51 +479,44 @@ class Page4(BasePage):
 class OutputWindow(QMainWindow):
     def __init__(self, demand_table, lead_table, simulation_log, metrics):
         super().__init__()
-        self.setWindowTitle("Simulation Output")
-        self.setGeometry(100, 100, 800, 600)
+        self.setWindowTitle("Inventory Simulation Output")
+        self.setGeometry(100, 100, 900, 700)
+        self.setStyleSheet("background-color: #4C4C4C; color: white;")
+
+        tab_widget = QTabWidget()
+        tab_widget.setStyleSheet("""
+            QTabWidget::pane { border: 1px solid #888888; }
+            QTabBar::tab { background: #2C2C2C; color: white; padding: 10px; border: 1px solid #888888; border-bottom: none; }
+            QTabBar::tab:selected { background: #4C4C4C; border-bottom: 1px solid #4C4C4C; }
+        """)
+        self.setCentralWidget(tab_widget)
+
+        tab_widget.addTab(self.create_table(metrics, is_dict=True), "Final Metrics")
+        tab_widget.addTab(self.create_table(demand_table), "Demand Distribution")
+        tab_widget.addTab(self.create_table(lead_table), "Lead Time Distribution")
+        tab_widget.addTab(self.create_table(simulation_log), "Simulation Log")
+
+    def create_table(self, data, is_dict=False):
+        if is_dict:
+            table_data = list(data.items())
+            table = QTableWidget(len(table_data), 2)
+            table.setHorizontalHeaderLabels(["Metric", "Value"])
+            for i, (key, value) in enumerate(table_data):
+                table.setItem(i, 0, QTableWidgetItem(str(key)))
+                table.setItem(i, 1, QTableWidgetItem(f"{value:.2f}" if isinstance(value, float) else str(value)))
+        else:
+            if not data: return QTableWidget()
+            table = QTableWidget(len(data), len(data[0]))
+            table.setHorizontalHeaderLabels(data[0].keys())
+            for i, row_data in enumerate(data):
+                for j, value in enumerate(row_data.values()):
+                    table.setItem(i, j, QTableWidgetItem(f"{value:.2f}" if isinstance(value, float) else str(value)))
         
-        central_widget = QWidget()
-        self.setCentralWidget(central_widget)
-        layout = QVBoxLayout(central_widget)
-
-        layout.addWidget(QLabel("Simulation Metrics"))
-        metrics_table_widget = self.create_metrics_table(metrics)
-        layout.addWidget(metrics_table_widget)
-
-        layout.addWidget(QLabel("Demand Distribution"))
-        demand_table_widget = self.create_table(demand_table)
-        layout.addWidget(demand_table_widget)
-
-        layout.addWidget(QLabel("Lead Time Distribution"))
-        lead_table_widget = self.create_table(lead_table)
-        layout.addWidget(lead_table_widget)
-
-        layout.addWidget(QLabel("Simulation Log"))
-        sim_table_widget = self.create_table(simulation_log)
-        layout.addWidget(sim_table_widget)
-
-    def create_table(self, data):
-        if not data:
-            return QTableWidget()
-        
-        table = QTableWidget(len(data), len(data[0]))
-        table.setHorizontalHeaderLabels(data[0].keys())
-        
-        for i, row_data in enumerate(data):
-            for j, (key, value) in enumerate(row_data.items()):
-                table.setItem(i, j, QTableWidgetItem(str(value)))
-        
-        table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
-        return table
-
-    def create_metrics_table(self, data):
-        table = QTableWidget(len(data), 2)
-        table.setHorizontalHeaderLabels(["Metric", "Value"])
-        
-        for i, (key, value) in enumerate(data.items()):
-            table.setItem(i, 0, QTableWidgetItem(key))
-            table.setItem(i, 1, QTableWidgetItem(f"{value:.2f}"))
-            
+        table.setStyleSheet("""
+            QTableWidget { background-color: #2C2C2C; color: white; gridline-color: #888888; alternate-background-color: #3C3C3C; }
+            QHeaderView::section { background-color: #61AF5E; color: black; padding: 4px; border: 1px solid #2C2C2C; }
+        """)
+        table.setAlternatingRowColors(True)
         table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         return table
 

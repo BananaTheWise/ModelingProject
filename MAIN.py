@@ -54,6 +54,7 @@ class DashboardWindow(QMainWindow):
             "Assignment 3",
             "Assignment 4",
             "Assignment 5",
+            "Assignment 6",
             "Team",
         ]
 
@@ -76,6 +77,8 @@ class DashboardWindow(QMainWindow):
                 b.clicked.connect(self.open_third_assignment)
             elif n == "Assignment 4":
                 b.clicked.connect(self.open_fourth_assignment)
+            elif n == "Assignment 6":
+                b.clicked.connect(self.open_sixth_assignment)
             elif n == "Documentation":
                 b.clicked.connect(self.open_Documentation)
             elif n == "Team":
@@ -120,6 +123,12 @@ class DashboardWindow(QMainWindow):
         from GUI.FourthAssignment import FourthAssignment
         self.fourth_window = FourthAssignment()
         self.fourth_window.show()
+        self.close()
+
+    def open_sixth_assignment(self):
+        from GUI.SixthAssignment import SixthAssignment
+        self.sixth_window = SixthAssignment()
+        self.sixth_window.show()
         self.close()
 
     def open_Documentation(self):
